@@ -63,6 +63,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     init {
         viewModelScope.launch(Dispatchers.IO) {
             _sources.value = store.sources.first()
+            if (_sources.value.isNotEmpty() && _currentSource.value == null) {
+                selectSource(_sources.value[0])
+            }
         }
     }
 
@@ -172,6 +175,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 cur.add(ApiSource(name, url))
                 store.save(cur)
                 _sources.value = cur
+                if (_currentSource.value == null) {
+                    selectSource(cur[0])
+                }
             }
         }
     }
@@ -198,7 +204,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val merged = cur + res.imported
             store.save(merged)
             _sources.value = merged
+            if (_currentSource.value == null) {
+                selectSource(merged[0])
+            }
         }
         res
     }
 }
+
