@@ -12,7 +12,7 @@ android {
         applicationId = "com.cyingshi.app"
         minSdk = 21
         targetSdk = 34
-        versionCode = 2
+        versionCode = 3
         versionName = "1.0"
     }
 
@@ -57,3 +57,4 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+
