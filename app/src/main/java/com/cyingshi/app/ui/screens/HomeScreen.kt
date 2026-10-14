@@ -1,5 +1,6 @@
 package com.cyingshi.app.ui.screens
 
+import android.content.res.Configuration
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -57,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -94,6 +96,9 @@ fun HomeScreen(nav: NavController, vm: MainViewModel) {
     val favorites by vm.favorites.collectAsState()
 
     var keyword by remember { mutableStateOf("") }
+
+    // 横屏时海报多列显示，避免大片空白
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var blockTarget by remember { mutableStateOf<Category?>(null) }
 
     val blockedIds = currentSource?.let { blockedMap[it.url]?.keys } ?: emptySet()
@@ -192,7 +197,7 @@ fun HomeScreen(nav: NavController, vm: MainViewModel) {
                     }
 
                     else -> LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
+                        columns = GridCells.Fixed(if (isLandscape) 6 else 3),
                         contentPadding = PaddingValues(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
