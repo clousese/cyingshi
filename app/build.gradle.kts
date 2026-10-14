@@ -17,12 +17,12 @@ val fixedDebugKeystore = run {
 android {
     namespace = "com.cyingshi.app"
     signingConfigs {
-        getByName("debug") {
-            storeFile = fixedDebugKeystore
-            storePassword = "cyingshi123"
-            keyAlias = "cyingshi"
-            keyPassword = "cyingshi123"
-        }
+        // 注：不用 getByName("debug") { } 的 lambda 写法，Kotlin DSL 下有重载歧义会导致脚本编译失败
+        val debugCfg = getByName("debug")
+        debugCfg.storeFile = fixedDebugKeystore
+        debugCfg.storePassword = "cyingshi123"
+        debugCfg.keyAlias = "cyingshi"
+        debugCfg.keyPassword = "cyingshi123"
     }
     compileSdk = 34
 
