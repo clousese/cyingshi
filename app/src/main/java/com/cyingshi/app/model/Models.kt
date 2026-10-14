@@ -22,5 +22,30 @@ data class Video(
 /** 单集 */
 data class Episode(val name: String, val url: String)
 
-/** 视频详情（含剧集列表） */
-data class VideoDetail(val video: Video, val episodes: List<Episode>)
+/** 播放源分组（vod_play_from $$$ 对应） */
+data class PlaySource(val name: String, val episodes: List<Episode>)
+
+/** 视频详情（含剧集列表与播放源分组） */
+data class VideoDetail(
+    val video: Video,
+    val episodes: List<Episode>,
+    val sources: List<PlaySource> = emptyList()
+)
+
+/** 收藏 */
+data class Favorite(
+    val apiUrl: String,
+    val vodId: String,
+    val vodName: String,
+    val vodPic: String,
+    val time: Long
+)
+
+/** 观看历史 */
+data class HistoryEntry(
+    val apiUrl: String,
+    val vodId: String,
+    val vodName: String,
+    val vodPic: String,
+    val time: Long
+)
