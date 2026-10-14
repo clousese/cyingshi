@@ -4,13 +4,15 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+import java.util.Base64
+
 // 固定 debug 签名钥匙：云构建每台机器随机生成 debug 钥匙，会导致各版本签名不一致、无法覆盖安装。
 // 钥匙以 base64 存在仓库根目录 debug.keystore.b64，配置阶段解码后用于签名，保证所有版本签名一致。
 val fixedDebugKeystore = run {
     val b64 = rootProject.file("debug.keystore.b64").readText().filterNot { it.isWhitespace() }
     val f = layout.buildDirectory.file("fixed-debug.keystore").get().asFile
     f.parentFile.mkdirs()
-    f.writeBytes(java.util.Base64.getDecoder().decode(b64))
+    f.writeBytes(Base64.getDecoder().decode(b64))
     f
 }
 
