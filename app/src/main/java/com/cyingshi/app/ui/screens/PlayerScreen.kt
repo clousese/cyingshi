@@ -1,11 +1,18 @@
 package com.cyingshi.app.ui.screens
 
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -32,6 +39,7 @@ import androidx.media3.ui.PlayerView
 fun PlayerScreen(url: String, title: String) {
     val context = LocalContext.current
     var errorMsg by remember(url) { mutableStateOf<String?>(null) }
+    var isFullscreen by remember { mutableStateOf(false) }
     val player = remember(url) {
         ExoPlayer.Builder(context).build().apply {
             addListener(object : Player.Listener {
@@ -74,6 +82,25 @@ fun PlayerScreen(url: String, title: String) {
                 .align(Alignment.TopStart)
                 .padding(16.dp)
         )
+        // 全屏切换按钮（右上角）
+        IconButton(
+            onClick = {
+                isFullscreen = !isFullscreen
+                (context as? Activity)?.requestedOrientation = if (isFullscreen)
+                    ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                else
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+        ) {
+            Icon(
+                imageVector = if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
+                contentDescription = "全屏切换",
+                tint = Color.White.copy(alpha = 0.9f)
+            )
+        }
         // 播放错误提示条（红色半透明，不再静默黑屏）
         errorMsg?.let { msg ->
             Box(
