@@ -1,8 +1,14 @@
 package com.cyingshi.app.ui.screens
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -10,31 +16,35 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,20 +52,37 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.cyingshi.app.model.ApiSource
+import com.cyingshi.app.model.Category
 import com.cyingshi.app.model.Video
+import com.cyingshi.app.ui.FavRed
+import com.cyingshi.app.ui.GreenDeep
+import com.cyingshi.app.ui.GreenFab
+import com.cyingshi.app.ui.GreenGradient
 import com.cyingshi.app.ui.MainViewModel
+import com.cyingshi.app.ui.StatusGreen
+import com.cyingshi.app.ui.YearBlue
 import com.cyingshi.app.ui.enc
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** OK绿版首页：渐变背景 + 顶栏 + 分类胶囊 + 三列海报墙 */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HomeScreen(nav: NavController, vm: MainViewModel = viewModel()) {
+fun HomeScreen(nav: NavController, vm: MainViewModel) {
     val sources by vm.sources.collectAsState()
     val currentSource by vm.currentSource.collectAsState()
     val categories by vm.categories.collectAsState()
@@ -63,227 +90,460 @@ fun HomeScreen(nav: NavController, vm: MainViewModel = viewModel()) {
     val videos by vm.videos.collectAsState()
     val page by vm.page.collectAsState()
     val pageCount by vm.pageCount.collectAsState()
-    val total by vm.total.collectAsState()
     val loading by vm.loading.collectAsState()
     val error by vm.error.collectAsState()
     val isSearchMode by vm.isSearchMode.collectAsState()
+    val blockedMap by vm.blockedMap.collectAsState()
+    val favorites by vm.favorites.collectAsState()
+
     var keyword by remember { mutableStateOf("") }
+    var blockTarget by remember { mutableStateOf<Category?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("c影视") },
-                actions = {
-                    IconButton(onClick = { nav.navigate("sources") }) {
-                        Icon(Icons.Default.Settings, contentDescription = "接口管理")
-                    }
-                }
-            )
-        }
-    ) { pad ->
-        Column(
-            modifier = Modifier
-                .padding(pad)
-                .fillMaxSize()
-                .padding(12.dp)
+    val blockedIds = currentSource?.let { blockedMap[it.url]?.keys } ?: emptySet()
+    val visibleCats = remember(categories, blockedIds) {
+        categories.filterNot { blockedIds.contains(it.id) }
+    }
+    val firstCat = visibleCats.firstOrNull()
+
+    // 若当前分类被屏蔽（或不可见），自动切到第一个可见分类
+    val curCat = currentCategory
+    LaunchedEffect(visibleCats, curCat?.id) {
+        if (!isSearchMode && curCat != null && visibleCats.isNotEmpty() &&
+            visibleCats.none { it.id == curCat.id }
         ) {
-            if (sources.isEmpty()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(20.dp).fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("暂无视频接口")
-                        Text(
-                            "请先在接口管理中添加接口地址",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Button(onClick = { nav.navigate("sources") }) { Text("去添加接口") }
-                    }
-                }
-            } else {
-                SourcePicker(
-                    sources = sources,
-                    current = currentSource,
-                    onSelect = { vm.selectSource(it) }
-                )
-            }
+            vm.selectCategory(visibleCats[0])
+        }
+    }
 
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = keyword,
-                    onValueChange = { keyword = it },
-                    placeholder = { Text("搜索视频…") },
-                    singleLine = true,
-                    enabled = currentSource != null,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(8.dp))
-                Button(
-                    onClick = { vm.search(keyword) },
-                    enabled = currentSource != null && keyword.isNotBlank()
-                ) { Text("搜索") }
-            }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(GreenGradient)
+            .statusBarsPadding()
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            TopBar(
+                keyword = keyword,
+                onKeyword = { keyword = it },
+                onSearch = { if (keyword.isNotBlank()) vm.search(keyword) },
+                searchEnabled = currentSource != null,
+                onSwitchSource = { nav.navigate("sources") },
+                onFavorites = { nav.navigate("favorites") },
+                onHistory = { nav.navigate("history") }
+            )
 
             if (isSearchMode) {
-                Text(
-                    text = "搜索模式，点击返回分类浏览",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-                OutlinedButton(
-                    onClick = { vm.exitSearch() },
-                    modifier = Modifier.padding(top = 4.dp)
-                ) { Text("退出搜索") }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "搜索中，点击返回分类浏览",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 13.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(onClick = { vm.exitSearch() }) {
+                        Text("退出搜索", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
 
-            Spacer(Modifier.height(8.dp))
+            if (currentSource != null) {
+                if (visibleCats.isEmpty()) {
+                    Text(
+                        text = "分类已全部屏蔽，可在设置 → 分类屏蔽管理中恢复",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                } else {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        item {
+                            CatChip(
+                                text = "推荐",
+                                selected = curCat?.id == firstCat?.id,
+                                onClick = { firstCat?.let { vm.selectCategory(it) } },
+                                onLongClick = {}
+                            )
+                        }
+                        items(visibleCats, key = { it.id }) { c ->
+                            CatChip(
+                                text = c.name,
+                                selected = curCat?.id == c.id,
+                                onClick = { vm.selectCategory(c) },
+                                onLongClick = { blockTarget = c }
+                            )
+                        }
+                    }
+                }
+            }
 
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(categories) { c ->
-                    FilterChip(
-                        selected = currentCategory?.id == c.id,
-                        onClick = { vm.selectCategory(c) },
-                        label = { Text(c.name) }
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when {
+                    sources.isEmpty() -> EmptySourceCard { nav.navigate("sources") }
+                    loading && videos.isEmpty() -> Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) { CircularProgressIndicator(color = Color.White) }
+
+                    videos.isEmpty() -> Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = error ?: "暂无数据",
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 14.sp
+                        )
+                    }
+
+                    else -> LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        contentPadding = PaddingValues(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(videos, key = { it.vodId }) { v ->
+                            val srcUrl = currentSource?.url
+                            VideoCard(
+                                v = v,
+                                isFav = srcUrl != null && favorites.any {
+                                    it.apiUrl == srcUrl && it.vodId == v.vodId
+                                },
+                                onFav = { srcUrl?.let { vm.toggleFavorite(v, it) } },
+                                onClick = {
+                                    srcUrl?.let {
+                                        nav.navigate("detail?apiUrl=${enc(it)}&vodId=${enc(v.vodId)}")
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+                if (loading && videos.isNotEmpty()) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 8.dp)
+                            .size(28.dp)
                     )
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            if (loading) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) { CircularProgressIndicator() }
-            }
-            error?.let {
-                Text(it, color = MaterialTheme.colorScheme.error)
-                Spacer(Modifier.height(4.dp))
-            }
-
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                items(videos, key = { it.vodId }) { v ->
-                    VideoCard(v) {
-                        val s = currentSource ?: return@VideoCard
-                        nav.navigate("detail?apiUrl=${enc(s.url)}&vodId=${enc(v.vodId)}")
-                    }
-                }
-            }
-
-            if (pageCount > 1) {
+            if (pageCount > 1 && !isSearchMode && videos.isNotEmpty()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedButton(
-                        onClick = { vm.loadPage(page - 1) },
-                        enabled = page > 1 && !loading
-                    ) { Text("上一页") }
+                    PageButton("上一页", enabled = page > 1 && !loading) { vm.loadPage(page - 1) }
                     Text(
-                        " 第 $page 页 / 共 $pageCount 页${if (total > 0) "（$total）" else ""} ",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 8.dp)
+                        text = " $page / $pageCount ",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp)
                     )
-                    OutlinedButton(
-                        onClick = { vm.loadPage(page + 1) },
-                        enabled = page < pageCount && !loading
-                    ) { Text("下一页") }
+                    PageButton("下一页", enabled = page < pageCount && !loading) { vm.loadPage(page + 1) }
                 }
             }
+            Spacer(modifier = Modifier.height(92.dp))
         }
-    }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SourcePicker(
-    sources: List<ApiSource>,
-    current: ApiSource?,
-    onSelect: (ApiSource) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
-    ) {
-        OutlinedTextField(
-            value = current?.name ?: "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("当前接口") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor().fillMaxWidth()
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
+        // 右下角蓝色换源 FAB
+        FloatingActionButton(
+            onClick = { nav.navigate("sources") },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 20.dp, bottom = 104.dp),
+            containerColor = GreenFab,
+            contentColor = Color.White,
+            shape = RoundedCornerShape(22.dp)
         ) {
-            sources.forEach { s ->
-                DropdownMenuItem(
-                    text = { Text(s.name) },
-                    onClick = {
-                        onSelect(s)
-                        expanded = false
-                    }
-                )
-            }
+            Icon(Icons.Filled.Link, contentDescription = "换源")
         }
+    }
+
+    // 长按分类 → 屏蔽确认
+    val bt = blockTarget
+    if (bt != null) {
+        AlertDialog(
+            onDismissRequest = { blockTarget = null },
+            title = { Text("屏蔽分类") },
+            text = { Text("以后不再显示「${bt.name}」吗？可在设置 → 分类屏蔽管理中恢复。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    currentSource?.let { vm.blockCategory(it.url, bt) }
+                    blockTarget = null
+                }) { Text("屏蔽") }
+            },
+            dismissButton = {
+                TextButton(onClick = { blockTarget = null }) { Text("取消") }
+            }
+        )
     }
 }
 
+/** 顶栏：换源立方体 + 胶囊搜索框 + 收藏星 + 历史 */
 @Composable
-fun VideoCard(v: Video, onClick: () -> Unit) {
-    Card(onClick = onClick) {
-        Column {
-            if (v.vodPic.isNotBlank()) {
-                AsyncImage(
-                    model = v.vodPic,
-                    contentDescription = v.vodName,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth().aspectRatio(3f / 4f)
-                )
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxWidth().aspectRatio(3f / 4f),
-                    contentAlignment = Alignment.Center
-                ) { Text("无封面", style = MaterialTheme.typography.bodySmall) }
-            }
-            Column(Modifier.padding(6.dp)) {
-                Text(
-                    v.vodName.ifBlank { "未知标题" },
-                    maxLines = 2,
-                    minLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (v.vodYear.isNotBlank()) {
+private fun TopBar(
+    keyword: String,
+    onKeyword: (String) -> Unit,
+    onSearch: () -> Unit,
+    searchEnabled: Boolean,
+    onSwitchSource: () -> Unit,
+    onFavorites: () -> Unit,
+    onHistory: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onSwitchSource, modifier = Modifier.size(42.dp)) {
+            CubeIcon(tint = Color.White)
+        }
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .height(42.dp)
+                .clip(RoundedCornerShape(21.dp))
+                .background(Color.White.copy(alpha = 0.25f))
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BasicTextField(
+                value = keyword,
+                onValueChange = onKeyword,
+                singleLine = true,
+                enabled = searchEnabled,
+                textStyle = TextStyle(color = Color.White, fontSize = 15.sp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+                decorationBox = { inner ->
+                    if (keyword.isEmpty()) {
                         Text(
-                            v.vodYear,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
+                            "搜索视频...",
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontSize = 15.sp
                         )
                     }
-                    if (v.vodRemarks.isNotBlank()) {
-                        Text(v.vodRemarks, style = MaterialTheme.typography.labelSmall)
-                    }
+                    inner()
+                },
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(
+                onClick = onSearch,
+                enabled = searchEnabled,
+                modifier = Modifier.size(30.dp)
+            ) {
+                Icon(Icons.Filled.Search, contentDescription = "搜索", tint = Color.White)
+            }
+        }
+        IconButton(onClick = onFavorites, modifier = Modifier.size(42.dp)) {
+            Icon(Icons.Filled.Star, contentDescription = "收藏", tint = Color.White)
+        }
+        IconButton(onClick = onHistory, modifier = Modifier.size(42.dp)) {
+            Icon(Icons.Filled.History, contentDescription = "历史", tint = Color.White)
+        }
+    }
+}
+
+/** 立方体换源图标 */
+@Composable
+private fun CubeIcon(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(30.dp)) {
+        val w = size.width
+        val h = size.height
+        val sw = w * 0.075f
+        val hex = Path().apply {
+            moveTo(w * 0.50f, h * 0.06f)
+            lineTo(w * 0.93f, h * 0.30f)
+            lineTo(w * 0.93f, h * 0.72f)
+            lineTo(w * 0.50f, h * 0.96f)
+            lineTo(w * 0.07f, h * 0.72f)
+            lineTo(w * 0.07f, h * 0.30f)
+            close()
+        }
+        drawPath(hex, tint, style = Stroke(sw))
+        val cx = w * 0.50f
+        val cy = h * 0.51f
+        drawLine(tint, Offset(cx, cy), Offset(w * 0.50f, h * 0.06f), strokeWidth = sw)
+        drawLine(tint, Offset(cx, cy), Offset(w * 0.07f, h * 0.72f), strokeWidth = sw)
+        drawLine(tint, Offset(cx, cy), Offset(w * 0.93f, h * 0.72f), strokeWidth = sw)
+    }
+}
+
+/** 分类胶囊 chip（支持长按屏蔽） */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CatChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(if (selected) GreenDeep else Color.White.copy(alpha = 0.20f))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(horizontal = 18.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = Color.White, fontSize = 14.sp)
+    }
+}
+
+/** 海报卡片：圆角 / 年份角标 / 状态条 / 剧名条 / 收藏心 */
+@Composable
+private fun VideoCard(
+    v: Video,
+    isFav: Boolean,
+    onFav: () -> Unit,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.10f))
+            .clickable(onClick = onClick)
+            .aspectRatio(3f / 4f)
+    ) {
+        if (v.vodPic.isNotBlank()) {
+            AsyncImage(
+                model = v.vodPic,
+                contentDescription = v.vodName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("无封面", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+            }
+        }
+        // 左上年份角标
+        val year = v.vodYear.trim().take(4)
+        if (year.isNotEmpty() && year[0].isDigit()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(6.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(YearBlue)
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(year, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        // 底部：状态条 + 剧名条
+        Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+            if (v.vodRemarks.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(StatusGreen.copy(alpha = 0.78f))
+                        .padding(vertical = 3.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = v.vodRemarks,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = 6.dp)
+                    )
                 }
             }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                        )
+                    )
+                    .padding(horizontal = 8.dp, vertical = 7.dp)
+            ) {
+                Text(
+                    text = v.vodName.ifBlank { "未知标题" },
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(end = 26.dp)
+                )
+            }
+        }
+        // 右下收藏心
+        IconButton(
+            onClick = onFav,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(2.dp)
+                .size(32.dp)
+        ) {
+            Icon(
+                imageVector = if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                contentDescription = "收藏",
+                tint = if (isFav) FavRed else Color.White.copy(alpha = 0.92f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PageButton(text: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White.copy(alpha = if (enabled) 0.30f else 0.12f))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = Color.White, fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun EmptySourceCard(onAdd: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier
+                .padding(24.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.White.copy(alpha = 0.92f))
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("暂无视频接口", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = GreenDeep)
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                "请先在接口管理中添加接口地址",
+                fontSize = 13.sp,
+                color = Color(0xFF3D5A4C),
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Button(
+                onClick = onAdd,
+                colors = ButtonDefaults.buttonColors(containerColor = GreenDeep)
+            ) { Text("去添加接口", color = Color.White) }
         }
     }
 }
