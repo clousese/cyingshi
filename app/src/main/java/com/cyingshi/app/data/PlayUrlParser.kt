@@ -95,4 +95,54 @@ object PlayUrlParser {
         }
         return episodes
     }
+
+    /**
+     * 按 $$$ 分组解析播放源，组名取自 vod_play_from（$$$ 分隔），
+     * 取不到时用"线路1/2/…"兜底。
+     */
+    fun parsePlayUrlGrouped(vodInfo: Map<String, String>): List<com.cyingshi.app.model.PlaySource> {
+        var content = ""
+        for (f in listOf("vod_play_url", "vod_url", "play_url", "url")) {
+            if (!vodInfo[f].isNullOrEmpty()) {
+                content = vodInfo[f]!!
+                break
+            }
+        }
+        if (content.isEmpty()) return emptyList()
+        val fromNames = (vodInfo["vod_play_from"] ?: "").split("$$$")
+        val out = mutableListOf<com.cyingshi.app.model.PlaySource>()
+        content.split("$$$").forEachIndexed { i, raw ->
+            val eps = parseChunkEpisodes(raw)
+            if (eps.isNotEmpty()) {
+                val nm = fromNames.getOrNull(i)?.trim().takeIf { !it.isNullOrEmpty() } ?: "线路${i + 1}"
+                out.add(com.cyingshi.app.model.PlaySource(nm, eps))
+            }
+        }
+        return out
+    }
+
+    private fun parseChunkEpisodes(rawChunk: String): List<Episode> {
+        val episodes = mutableListOf<Episode>()
+        val s = rawChunk.trim()
+        if (s.isEmpty()) return episodes
+        for (part in s.split("#")) {
+            val p = part.trim()
+            if (p.isEmpty()) continue
+            val idx = p.indexOf('$')
+            if (idx >= 0) {
+                var name = p.substring(0, idx).trim()
+                val url = p.substring(idx + 1).trim()
+                    .replace("#", "\n")
+                    .replace("$", " ")
+                    .replace(Regex("\\\\+"), "")
+                if (isValidM3U8Url(url)) {
+                    if (name.isEmpty()) name = "第${episodes.size + 1}集"
+                    episodes.add(Episode(name, url))
+                }
+            } else if (isValidM3U8Url(p)) {
+                episodes.add(Episode("第${episodes.size + 1}集", p))
+            }
+        }
+        return episodes
+    }
 }
