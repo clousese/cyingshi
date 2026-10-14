@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -60,7 +59,7 @@ fun AppNav() {
     val vm: MainViewModel = viewModel()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
-    val showBar = route == "home" || route == "history" || route == "settings"
+    val showBar = route == "home" || route == "settings"
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
@@ -129,7 +128,6 @@ private fun CYBottomBar(nav: NavController, current: String?, modifier: Modifier
         verticalAlignment = Alignment.CenterVertically
     ) {
         BarItem(Icons.Filled.Movie, current == "home") { navToTab(nav, "home") }
-        BarItem(Icons.Filled.SmartDisplay, current == "history") { navToTab(nav, "history") }
         BarItem(Icons.Filled.Settings, current == "settings") { navToTab(nav, "settings") }
     }
 }
