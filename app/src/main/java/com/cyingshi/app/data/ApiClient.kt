@@ -224,6 +224,10 @@ object ApiClient {
 
     fun fetchVideoDetail(apiUrl: String, vodId: String): VideoDetail? {
         val m = fetchDetailsBatch(apiUrl, listOf(vodId))[vodId] ?: return null
-        return VideoDetail(mapToVideo(m), PlayUrlParser.parsePlayUrl(m))
+        return VideoDetail(
+            video = mapToVideo(m),
+            episodes = PlayUrlParser.parsePlayUrl(m),
+            sources = PlayUrlParser.parsePlayUrlGrouped(m)
+        )
     }
 }
