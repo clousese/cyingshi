@@ -1,5 +1,6 @@
 package com.cyingshi.app.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -33,9 +35,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.cyingshi.app.data.ImportParser
 import com.cyingshi.app.ui.MainViewModel
@@ -45,6 +49,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SourceManageScreen(nav: NavController, vm: MainViewModel) {
     val sources by vm.sources.collectAsState()
+    val currentSource by vm.currentSource.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
     var showImport by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
@@ -80,8 +85,31 @@ fun SourceManageScreen(nav: NavController, vm: MainViewModel) {
         } else {
             LazyColumn(modifier = Modifier.padding(pad).fillMaxSize()) {
                 items(sources, key = { it.url }) { s ->
+                    val isCurrent = s.url == currentSource?.url
                     ListItem(
-                        headlineContent = { Text(s.name) },
+                        modifier = Modifier.background(
+                            if (isCurrent) Color(0xFF2E7D32).copy(alpha = 0.15f)
+                            else Color.Transparent
+                        ),
+                        headlineContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(s.name)
+                                if (isCurrent) {
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(start = 8.dp)
+                                            .background(
+                                                Color(0xFF2E7D32),
+                                                RoundedCornerShape(4.dp)
+                                            )
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("当前", color = Color.White, fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        },
                         supportingContent = {
                             Text(
                                 s.url,
