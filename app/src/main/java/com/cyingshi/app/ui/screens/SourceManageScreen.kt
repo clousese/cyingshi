@@ -36,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.cyingshi.app.data.ImportParser
 import com.cyingshi.app.ui.MainViewModel
@@ -44,7 +43,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SourceManageScreen(nav: NavController, vm: MainViewModel = viewModel()) {
+fun SourceManageScreen(nav: NavController, vm: MainViewModel) {
     val sources by vm.sources.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
     var showImport by remember { mutableStateOf(false) }
@@ -92,7 +91,13 @@ fun SourceManageScreen(nav: NavController, vm: MainViewModel = viewModel()) {
                             )
                         },
                         trailingContent = {
-                            TextButton(onClick = { vm.deleteSource(s.url) }) { Text("删除") }
+                            Row {
+                                TextButton(onClick = {
+                                    vm.selectSource(s)
+                                    nav.popBackStack()
+                                }) { Text("使用") }
+                                TextButton(onClick = { vm.deleteSource(s.url) }) { Text("删除") }
+                            }
                         }
                     )
                     HorizontalDivider()
