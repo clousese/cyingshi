@@ -1,12 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A3 翡翠绿霓虹播放键（矢量版）：三层描边模拟霓虹光晕 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#00C8FF"
-        android:pathData="M54,54m-34,0a34,34 0,1 1,68 0a34,34 0,1 1,-68 0" />
+        android:fillColor="#00000000"
+        android:strokeColor="#34D399"
+        android:strokeAlpha="0.28"
+        android:strokeWidth="11"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M42,30 L80,54 L42,78 Z" />
     <path
-        android:fillColor="#0A0A0F"
-        android:pathData="M46,40l22,14 -22,14z" />
+        android:fillColor="#00000000"
+        android:strokeColor="#34D399"
+        android:strokeAlpha="0.65"
+        android:strokeWidth="6.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M42,30 L80,54 L42,78 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#D1FAE5"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M42,30 L80,54 L42,78 Z" />
 </vector>
