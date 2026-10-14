@@ -7,8 +7,11 @@ import com.cyingshi.app.data.ApiClient
 import com.cyingshi.app.data.ImportParser
 import com.cyingshi.app.data.ImportResult
 import com.cyingshi.app.data.SourceStore
+import com.cyingshi.app.data.UserDataStore
 import com.cyingshi.app.model.ApiSource
 import com.cyingshi.app.model.Category
+import com.cyingshi.app.model.Favorite
+import com.cyingshi.app.model.HistoryEntry
 import com.cyingshi.app.model.Video
 import com.cyingshi.app.model.VideoDetail
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +24,7 @@ import kotlinx.coroutines.withContext
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val store = SourceStore(app.applicationContext)
+    private val userData = UserDataStore(app.applicationContext)
 
     private val _sources = MutableStateFlow<List<ApiSource>>(emptyList())
     val sources: StateFlow<List<ApiSource>> = _sources
@@ -58,6 +62,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _isSearchMode = MutableStateFlow(false)
     val isSearchMode: StateFlow<Boolean> = _isSearchMode
 
+    /** 被屏蔽的分类：sourceUrl -> (categoryId -> categoryName) */
+    private val _blockedMap = MutableStateFlow<Map<String, Map<String, String>>>(emptyMap())
+    val blockedMap: StateFlow<Map<String, Map<String, String>>> = _blockedMap
+
+    private val _favorites = MutableStateFlow<List<Favorite>>(emptyList())
+    val favorites: StateFlow<List<Favorite>> = _favorites
+
+    private val _history = MutableStateFlow<List<HistoryEntry>>(emptyList())
+    val history: StateFlow<List<HistoryEntry>> = _history
+
     private var searchKeyword = ""
 
     init {
@@ -66,6 +80,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             if (_sources.value.isNotEmpty() && _currentSource.value == null) {
                 selectSource(_sources.value[0])
             }
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            store.blocked.collect { _blockedMap.value = it }
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            userData.favorites.collect { _favorites.value = it }
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            userData.history.collect { _history.value = it }
         }
     }
 
@@ -84,9 +107,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val cats = ApiClient.fetchCategories(s.url)
                 _categories.value = cats
-                if (cats.isNotEmpty()) {
-                    _currentCategory.value = cats[0]
+                // 跳过被屏蔽的分类，选中第一个可见分类
+                val blocked = _blockedMap.value[s.url]?.keys ?: emptySet()
+                val first = cats.firstOrNull { !blocked.contains(it.id) }
+                if (first != null) {
+                    _currentCategory.value = first
                     loadVideosInternal(1)
+                } else if (cats.isNotEmpty()) {
+                    _error.value = "分类已全部屏蔽，可在设置中恢复"
                 } else {
                     _error.value = "该接口未返回分类"
                 }
@@ -210,5 +238,74 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         res
     }
-}
 
+    // ---------- 分类屏蔽 ----------
+
+    fun blockCategory(sourceUrl: String, category: Category) {
+        viewModelScope.launch(Dispatchers.IO) {
+            store.setBlockedCategory(sourceUrl, category.id, category.name, true)
+            // 若屏蔽的是当前分类，切到第一个可见分类
+            if (_currentSource.value?.url == sourceUrl && _currentCategory.value?.id == category.id) {
+                val blockedNow = (_blockedMap.value[sourceUrl]?.keys ?: emptySet()) + category.id
+                val visible = _categories.value.filterNot { blockedNow.contains(it.id) }
+                if (visible.isNotEmpty()) {
+                    selectCategory(visible[0])
+                } else {
+                    _currentCategory.value = null
+                    _videos.value = emptyList()
+                }
+            }
+        }
+    }
+
+    fun unblockCategory(sourceUrl: String, categoryId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            store.setBlockedCategory(sourceUrl, categoryId, "", false)
+        }
+    }
+
+    // ---------- 收藏 ----------
+
+    fun toggleFavorite(video: Video, apiUrl: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userData.toggleFavorite(
+                Favorite(
+                    apiUrl = apiUrl,
+                    vodId = video.vodId,
+                    vodName = video.vodName,
+                    vodPic = video.vodPic,
+                    time = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    fun removeFavorite(apiUrl: String, vodId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userData.removeFavorite(apiUrl, vodId)
+        }
+    }
+
+    fun isFavorite(apiUrl: String, vodId: String): Boolean =
+        _favorites.value.any { it.apiUrl == apiUrl && it.vodId == vodId }
+
+    // ---------- 观看历史 ----------
+
+    fun addHistory(video: Video, apiUrl: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userData.addHistory(
+                HistoryEntry(
+                    apiUrl = apiUrl,
+                    vodId = video.vodId,
+                    vodName = video.vodName,
+                    vodPic = video.vodPic,
+                    time = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    fun clearHistory() {
+        viewModelScope.launch(Dispatchers.IO) { userData.clearHistory() }
+    }
+}
