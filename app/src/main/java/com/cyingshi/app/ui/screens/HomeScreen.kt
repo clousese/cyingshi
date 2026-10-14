@@ -31,14 +31,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -72,7 +70,6 @@ import com.cyingshi.app.model.Category
 import com.cyingshi.app.model.Video
 import com.cyingshi.app.ui.FavRed
 import com.cyingshi.app.ui.GreenDeep
-import com.cyingshi.app.ui.GreenFab
 import com.cyingshi.app.ui.GreenGradient
 import com.cyingshi.app.ui.MainViewModel
 import com.cyingshi.app.ui.StatusGreen
@@ -103,7 +100,6 @@ fun HomeScreen(nav: NavController, vm: MainViewModel) {
     val visibleCats = remember(categories, blockedIds) {
         categories.filterNot { blockedIds.contains(it.id) }
     }
-    val firstCat = visibleCats.firstOrNull()
 
     // 若当前分类被屏蔽（或不可见），自动切到第一个可见分类
     val curCat = currentCategory
@@ -164,14 +160,6 @@ fun HomeScreen(nav: NavController, vm: MainViewModel) {
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        item {
-                            CatChip(
-                                text = "推荐",
-                                selected = curCat?.id == firstCat?.id,
-                                onClick = { firstCat?.let { vm.selectCategory(it) } },
-                                onLongClick = {}
-                            )
-                        }
                         items(visibleCats, key = { it.id }) { c ->
                             CatChip(
                                 text = c.name,
@@ -258,18 +246,6 @@ fun HomeScreen(nav: NavController, vm: MainViewModel) {
             Spacer(modifier = Modifier.height(92.dp))
         }
 
-        // 右下角蓝色换源 FAB
-        FloatingActionButton(
-            onClick = { nav.navigate("sources") },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 104.dp),
-            containerColor = GreenFab,
-            contentColor = Color.White,
-            shape = RoundedCornerShape(22.dp)
-        ) {
-            Icon(Icons.Filled.Link, contentDescription = "换源")
-        }
     }
 
     // 长按分类 → 屏蔽确认
